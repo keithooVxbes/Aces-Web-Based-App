@@ -82,12 +82,17 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       <SidebarContent>
         <SidebarGroup>
           <SidebarMenu className="gap-2">
-            {data.navMain.map((item) => (
-              <SidebarMenuItem key={item.title}>
+            {data.navMain.map((item, index) => (
+              <SidebarMenuItem
+                key={item.title}
+                className="motion-sidebar-item"
+                style={{ "--motion-delay": `${index * 40}ms` } as React.CSSProperties}
+              >
                 <SidebarMenuButton
                   asChild
                   tooltip={item.title}
                   isActive={location.pathname === item.url}
+                  className="motion-nav-button"
                 >
                   <Link to={item.url}>
                     <item.icon className="size-4" />
@@ -102,12 +107,13 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarContent>
       <SidebarFooter>
         <SidebarMenu className="gap-2">
-          <SidebarMenuItem>
+          <SidebarMenuItem className="motion-sidebar-item">
             <SidebarMenuButton 
               size="lg" 
               asChild 
               tooltip="Settings"
               isActive={location.pathname === "/settings"}
+              className="motion-nav-button"
             >
               <Link to="/settings">
                 <Avatar className="h-8 w-8 rounded-lg">

@@ -65,7 +65,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
                         <React.Fragment key={name}>
                           <BreadcrumbItem>
                             {isLast ? (
-                              <BreadcrumbPage className="capitalize">{name}</BreadcrumbPage>
+                              <BreadcrumbPage className="capitalize motion-breadcrumb-in">{name}</BreadcrumbPage>
                             ) : (
                               <BreadcrumbLink asChild>
                                 <Link to={routeTo} className="capitalize">
@@ -86,39 +86,43 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
               <div className="flex items-center h-full app-region-no-drag -mr-4">
                 <button
                   onClick={handleToggleTheme}
-                  className="flex h-full w-10 items-center justify-center hover:bg-muted/50 transition-colors"
+                  className="flex h-full w-10 items-center justify-center transition-colors duration-200 ease-out active:scale-95 hover:bg-muted/50"
                   title={resolvedTheme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
                   aria-label={resolvedTheme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
                 >
-                  {resolvedTheme === "dark" ? (
-                    <Sun className="size-3.5" />
-                  ) : (
-                    <Moon className="size-3.5" />
-                  )}
+                  <span key={resolvedTheme} className="motion-icon-swap">
+                    {resolvedTheme === "dark" ? (
+                      <Sun className="size-3.5" />
+                    ) : (
+                      <Moon className="size-3.5" />
+                    )}
+                  </span>
                 </button>
                 <button 
                   onClick={handleMinimize}
-                  className="flex h-full w-10 items-center justify-center hover:bg-muted/50 transition-colors"
+                  className="flex h-full w-10 items-center justify-center transition-colors duration-200 ease-out active:scale-95 hover:bg-muted/50"
                 >
                   <Minus className="size-3.5" />
                 </button>
                 <button 
                   onClick={handleMaximize}
-                  className="flex h-full w-10 items-center justify-center hover:bg-muted/50 transition-colors"
+                  className="flex h-full w-10 items-center justify-center transition-colors duration-200 ease-out active:scale-95 hover:bg-muted/50"
                 >
                   <Square className="size-3" />
                 </button>
                 <button 
                   onClick={handleClose}
-                  className="flex h-full w-12 items-center justify-center hover:bg-destructive/80 hover:text-destructive-foreground transition-colors"
+                  className="flex h-full w-12 items-center justify-center transition-colors duration-200 ease-out active:scale-95 hover:bg-destructive/80 hover:text-destructive-foreground"
                 >
                   <X className="size-4" />
                 </button>
               </div>
             </header>
             <ScrollArea className="flex-1 overflow-hidden">
-              <main className="flex flex-col gap-6 p-6 min-h-full">
-                {children}
+              <main className="flex min-h-full flex-col gap-6 p-6">
+                <div key={location.pathname} className="motion-page min-h-full">
+                  {children}
+                </div>
               </main>
             </ScrollArea>
           </SidebarInset>

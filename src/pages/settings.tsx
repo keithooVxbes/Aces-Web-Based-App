@@ -102,6 +102,7 @@ export default function SettingsPage() {
         const parts: string[] = []
         if (s.assignments > 0) parts.push(`${s.assignments} assignments`)
         if (s.notes > 0) parts.push(`${s.notes} notes`)
+        if (s.folders > 0) parts.push(`${s.folders} folders`)
         if (s.transactions > 0) parts.push(`${s.transactions} transactions`)
         if (s.cashflowSubscriptions > 0) parts.push(`${s.cashflowSubscriptions} subscriptions`)
         if (s.scheduleClasses > 0) parts.push(`${s.scheduleClasses} classes`)
@@ -144,7 +145,7 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="motion-stagger flex flex-col gap-6">
       <div className="flex flex-col gap-1">
         <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
         <p className="text-muted-foreground">
@@ -163,7 +164,7 @@ export default function SettingsPage() {
         </TabsList>
 
         <TabsContent value="profile" className="mt-6">
-          <Card>
+          <Card className="motion-card">
             <CardHeader>
               <CardTitle>Profile</CardTitle>
               <CardDescription>
@@ -177,7 +178,7 @@ export default function SettingsPage() {
         </TabsContent>
 
         <TabsContent value="weather" className="mt-6">
-          <Card>
+          <Card className="motion-card">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <CloudSun className="size-5" />
@@ -209,7 +210,7 @@ export default function SettingsPage() {
                     The city name for your weather data. No API key required.
                   </p>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="motion-content-swap flex items-center gap-3">
                   <Button onClick={handleSaveWeather}>
                     <Save data-icon="inline-start" />
                     Save Weather Settings
@@ -226,7 +227,7 @@ export default function SettingsPage() {
         </TabsContent>
 
         <TabsContent value="cashflow" className="mt-6">
-          <Card>
+          <Card className="motion-card">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Wallet className="size-5" />
@@ -257,7 +258,7 @@ export default function SettingsPage() {
                     The symbol used globally in your cashflow dashboard.
                   </p>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="motion-content-swap flex items-center gap-3">
                   <Button onClick={handleSaveCashflow}>
                     <Save data-icon="inline-start" />
                     Save Cashflow Settings
@@ -274,7 +275,7 @@ export default function SettingsPage() {
         </TabsContent>
 
         <TabsContent value="appearance" className="mt-6">
-          <Card>
+          <Card className="motion-card">
             <CardHeader>
               <CardTitle>Appearance</CardTitle>
               <CardDescription>
@@ -284,7 +285,7 @@ export default function SettingsPage() {
             <CardContent>
               <div className="grid gap-4 max-w-lg">
                 <Label>Theme</Label>
-                <div className="grid grid-cols-3 gap-3">
+                <div className="motion-stagger grid grid-cols-3 gap-3">
                   {[
                     { value: "light" as const, label: "Light" },
                     { value: "dark" as const, label: "Dark" },
@@ -338,7 +339,7 @@ export default function SettingsPage() {
             )}
 
             {/* Export Card */}
-            <Card>
+            <Card className="motion-card">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Download className="size-5" />
@@ -366,7 +367,7 @@ export default function SettingsPage() {
             </Card>
 
             {/* Import Card */}
-            <Card>
+            <Card className="motion-card">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Upload className="size-5" />
@@ -414,7 +415,7 @@ export default function SettingsPage() {
             </Card>
 
             {/* Storage Info */}
-            <Card>
+            <Card className="motion-card">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <HardDrive className="size-5" />

@@ -83,14 +83,14 @@ export function SubscriptionManager() {
             </DialogHeader>
             
             {/* Active Subscriptions List */}
-            <div className="space-y-4 py-2">
+            <div className="motion-list flex flex-col gap-4 py-2">
               <h4 className="font-medium text-sm">Active Subscriptions</h4>
               {subscriptions.length === 0 ? (
                 <p className="text-sm text-muted-foreground">No active subscriptions found.</p>
               ) : (
-                <div className="space-y-2">
+                <div className="motion-list flex flex-col gap-2">
                   {subscriptions.map((sub) => (
-                    <div key={sub.id} className="flex items-center justify-between p-3 border rounded-md">
+                    <div key={sub.id} className="motion-card flex items-center justify-between rounded-md border p-3">
                       <div>
                         <p className="font-medium text-sm">{sub.name}</p>
                         <p className="text-xs text-muted-foreground">{sub.category} • Starts {format(new Date(sub.startDate), "MMM d, yyyy")}</p>
@@ -190,7 +190,7 @@ export function SubscriptionManager() {
                           setDate(d)
                           setIsDatePickerOpen(false)
                         }}
-                        initialFocus
+                        autoFocus
                       />
                     </PopoverContent>
                   </Popover>

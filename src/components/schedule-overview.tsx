@@ -1,78 +1,89 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { useSchedule } from "@/lib/schedule-store"
-import { DayOfWeek } from "@/lib/schedule-data"
-import { Calendar, MapPin, Clock } from "lucide-react"
-import { cn } from "@/lib/utils"
-
-const colorThemes = {
-  green: "bg-emerald-500/10 border-emerald-500/20 text-emerald-400",
-  red: "bg-rose-500/10 border-rose-500/20 text-rose-400",
-  blue: "bg-blue-500/10 border-blue-500/20 text-blue-400",
-  teal: "bg-teal-500/10 border-teal-500/20 text-teal-400",
-  purple: "bg-purple-500/10 border-purple-500/20 text-purple-400",
-  yellow: "bg-yellow-500/10 border-yellow-500/20 text-yellow-400",
-  default: "bg-secondary border-border text-foreground",
-}
-
 import { useMemo } from "react"
+import { Calendar, Clock3, MapPin } from "lucide-react"
+
+import { useSchedule } from "@/lib/schedule-store"
+import {
+  formatTime,
+  getCurrentDay,
+  scheduleThemeClasses,
+  type ScheduleClass,
+} from "@/lib/schedule-data"
+import { cn } from "@/lib/utils"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
 
 export function ScheduleOverview() {
   const { classes } = useSchedule()
-
-  const date = new Date()
-  const index = date.getDay() // 0 is Sunday, 1 is Monday
-  const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
-  const currentDay = dayNames[index] as DayOfWeek | "Sunday" | "Saturday"
+  const currentDay = getCurrentDay()
 
   const todaysClasses = useMemo(() => {
+    if (!currentDay) return []
     return classes
-      .filter(c => c.day === currentDay)
-      .sort((a, b) => a.startTime.localeCompare(b.startTime));
-  }, [classes, currentDay]);
+      .filter((scheduleClass) => scheduleClass.day === currentDay)
+      .sort((a, b) => a.startTime.localeCompare(b.startTime))
+  }, [classes, currentDay])
 
   return (
-    <Card className="flex flex-col">
+    <Card className="motion-card flex flex-col">
       <CardHeader className="pb-3">
-        <CardTitle className="flex items-center justify-between">
+        <CardTitle className="flex items-center justify-between gap-2">
           <span className="flex items-center gap-2">
             <Calendar />
-            Today's Schedule
+            Today&apos;s schedule
           </span>
-          <span className="text-sm font-normal text-muted-foreground capitalize">
-            {currentDay}
-          </span>
+          {currentDay ? <Badge variant="secondary">{currentDay}</Badge> : <Badge variant="outline">Weekend</Badge>}
         </CardTitle>
-        <CardDescription>Your classes for today.</CardDescription>
+        <CardDescription>
+          {currentDay ? "Your classes for today." : "No weekday classes on weekends."}
+        </CardDescription>
       </CardHeader>
       <CardContent className="flex-1">
         {todaysClasses.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-6 text-center text-muted-foreground border border-dashed rounded-lg">
-            <Calendar className="size-8 mb-2 opacity-20" />
-            <p>No classes today! 🎉</p>
-          </div>
+          <Empty className="min-h-48 border">
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <Calendar />
+              </EmptyMedia>
+              <EmptyTitle>{currentDay ? "No classes today" : "Enjoy your day"}</EmptyTitle>
+              <EmptyDescription>
+                {currentDay ? "Your schedule is clear for today." : "Your recurring week starts on Monday."}
+              </EmptyDescription>
+            </EmptyHeader>
+            <EmptyContent />
+          </Empty>
         ) : (
-          <div className="flex flex-col gap-3">
-            {todaysClasses.map(c => (
-              <div 
-                key={c.id} 
-                className={cn("flex flex-col gap-2 rounded-lg border p-3", colorThemes[c.colorTheme as keyof typeof colorThemes])}
-              >
-                <div className="flex justify-between items-start">
-                  <span className="font-semibold text-sm leading-none">{c.name}</span>
-                  <div className="flex items-center text-xs opacity-80 shrink-0 bg-background/40 px-1.5 py-0.5 rounded ml-2">
-                    <Clock className="mr-1 size-3" />
-                    {c.startTime} - {c.endTime}
-                  </div>
-                </div>
-                <div className="flex items-center text-xs opacity-80 mt-1">
-                  <MapPin className="mr-1 size-3" />
-                  {c.room}
-                </div>
-              </div>
+          <div className="motion-list flex flex-col gap-3">
+            {todaysClasses.map((scheduleClass) => (
+              <OverviewClass key={scheduleClass.id} scheduleClass={scheduleClass} />
             ))}
           </div>
         )}
       </CardContent>
     </Card>
+  )
+}
+
+function OverviewClass({ scheduleClass }: { scheduleClass: ScheduleClass }) {
+  return (
+    <div className={cn("motion-card flex flex-col gap-2 rounded-lg border p-3", scheduleThemeClasses[scheduleClass.colorTheme])}>
+      <div className="flex items-start justify-between gap-2">
+        <span className="font-semibold leading-tight">{scheduleClass.name}</span>
+        <span className="flex shrink-0 items-center gap-1 rounded-md bg-background/50 px-1.5 py-1 text-xs font-medium">
+          <Clock3 className="size-3" data-icon="inline-start" />
+          {formatTime(scheduleClass.startTime)} – {formatTime(scheduleClass.endTime)}
+        </span>
+      </div>
+      <div className="flex items-center gap-1 text-xs font-medium opacity-80">
+        <MapPin className="size-3" data-icon="inline-start" />
+        <span className="truncate">{scheduleClass.room}</span>
+      </div>
+    </div>
   )
 }

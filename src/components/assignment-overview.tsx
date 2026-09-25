@@ -38,7 +38,7 @@ export function AssignmentOverview() {
     .slice(0, 5)
 
   return (
-    <Card className="flex flex-col">
+    <Card className="motion-card flex flex-col">
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center justify-between">
           <span className="flex items-center gap-2">
@@ -57,7 +57,7 @@ export function AssignmentOverview() {
       </CardHeader>
       <CardContent className="flex-1">
         {/* Status summary */}
-        <div className="grid grid-cols-3 gap-3 mb-4">
+        <div className="motion-stagger grid grid-cols-3 gap-3 mb-4">
           <div className="rounded-lg bg-muted/50 p-3 text-center">
             <p className="text-2xl font-bold">{todoCount}</p>
             <p className="text-xs text-muted-foreground">To Do</p>
@@ -75,7 +75,7 @@ export function AssignmentOverview() {
         <Separator className="mb-4" />
 
         {/* Upcoming assignments */}
-        <div className="flex flex-col gap-3">
+        <div className="motion-list flex flex-col gap-3">
           <h4 className="text-sm font-medium text-muted-foreground">Upcoming Deadlines</h4>
           {upcoming.length === 0 ? (
             <p className="text-sm text-muted-foreground italic py-4 text-center">
@@ -92,7 +92,7 @@ export function AssignmentOverview() {
               return (
                 <div
                   key={assignment.id}
-                  className="flex items-center justify-between rounded-lg border p-3 transition-colors hover:bg-muted/50"
+                  className="motion-card flex items-center justify-between rounded-lg border p-3 transition-colors hover:bg-muted/50"
                 >
                   <div className="flex flex-col gap-1 min-w-0">
                     <div className="flex items-center gap-2">

@@ -67,7 +67,7 @@ export function CashflowOverview() {
   return (
     <>
       <CurrencyPrompt />
-      <Card>
+      <Card className="motion-card">
         <CardHeader className="flex flex-row items-center justify-between pb-2">
           <div className="flex flex-row items-center gap-4">
             <CardTitle className="text-base flex items-center gap-2">
@@ -104,21 +104,21 @@ export function CashflowOverview() {
             <Link to="/cashflow">Manage</Link>
           </Button>
         </CardHeader>
-        <CardContent>
+        <CardContent key={selectedMonth} className="motion-content-swap">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
             <div>
               <span className="text-sm font-medium text-muted-foreground">Total Balance</span>
-              <div className="text-3xl font-bold tracking-tight">
+              <div className="motion-metric text-3xl font-bold tracking-tight">
                 {currency}{balance.toLocaleString()}
               </div>
             </div>
-            <div className="flex items-center gap-4 sm:ml-auto">
+            <div className="motion-stagger flex items-center gap-4 sm:ml-auto">
               <div className="flex flex-col gap-1 rounded-lg bg-muted/50 px-4 py-2 min-w-[120px]">
                 <span className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
                   <ArrowUpCircle className="size-3 text-green-500" />
                   Income
                 </span>
-                <span className="text-lg font-semibold text-green-500">
+                <span className="motion-metric text-lg font-semibold text-green-500">
                   +{currency}{income.toLocaleString()}
                 </span>
               </div>
@@ -127,7 +127,7 @@ export function CashflowOverview() {
                   <ReceiptText className="size-3" />
                   Today
                 </span>
-                <span className="text-lg font-semibold">
+                <span className="motion-metric text-lg font-semibold">
                   {todaySpending > 0 ? "-" : ""}{currency}{todaySpending.toLocaleString()}
                 </span>
               </div>
@@ -136,7 +136,7 @@ export function CashflowOverview() {
                   <ArrowDownCircle className="size-3 text-red-500" />
                   Expense
                 </span>
-                <span className="text-lg font-semibold text-red-500">
+                <span className="motion-metric text-lg font-semibold text-red-500">
                   -{currency}{expense.toLocaleString()}
                 </span>
               </div>
@@ -145,7 +145,7 @@ export function CashflowOverview() {
                   <CalendarDays className="size-3 text-orange-500" />
                   This Week
                 </span>
-                <span className="text-lg font-semibold text-foreground">
+                <span className="motion-metric text-lg font-semibold text-foreground">
                   {thisWeekExpense > 0 ? "-" : ""}{currency}{thisWeekExpense.toLocaleString()}
                 </span>
               </div>

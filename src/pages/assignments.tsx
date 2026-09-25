@@ -41,6 +41,7 @@ import {
   Plus,
   CalendarIcon,
   CalendarDays,
+  KanbanSquare,
   GripVertical,
   Trash2,
   Pencil,
@@ -138,11 +139,16 @@ export default function AssignmentsPage() {
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="motion-stagger flex flex-col gap-6">
       {/* Page header */}
       <div className="flex items-center justify-between">
         <div className="flex flex-col gap-1">
-          <h1 className="text-3xl font-bold tracking-tight">Assignments</h1>
+          <div className="flex items-center gap-2">
+            <div className="flex size-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <KanbanSquare className="size-5" />
+            </div>
+            <h1 className="text-3xl font-bold tracking-tight">Assignments</h1>
+          </div>
           <p className="text-muted-foreground">
             Manage your college assignments with a Kanban board.
           </p>
@@ -235,7 +241,7 @@ export default function AssignmentsPage() {
                           })
                           setIsDueDatePickerOpen(false)
                         }}
-                        initialFocus
+                        autoFocus
                       />
                     </PopoverContent>
                   </Popover>
@@ -299,7 +305,7 @@ export default function AssignmentsPage() {
       <Separator />
 
       {/* Kanban columns */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+      <div className="motion-stagger grid grid-cols-1 gap-6 lg:grid-cols-3">
         {columns.map((column) => {
           const columnAssignments = assignments
             .filter((a) => a.status === column.id)
@@ -327,7 +333,7 @@ export default function AssignmentsPage() {
                 </div>
               </div>
 
-              <div className="flex min-h-[200px] flex-col gap-3 rounded-xl border border-dashed border-muted-foreground/25 bg-muted/20 p-3">
+              <div className="motion-list flex min-h-[200px] flex-col gap-3 rounded-xl border border-dashed border-muted-foreground/25 bg-muted/20 p-3">
                 {columnAssignments.length === 0 ? (
                   <div className="flex flex-1 items-center justify-center">
                     <p className="text-xs text-muted-foreground italic">
@@ -347,7 +353,7 @@ export default function AssignmentsPage() {
                         draggable
                         onDragStart={(e) => handleDragStart(e, assignment.id)}
                         onDragEnd={handleDragEnd}
-                        className={`cursor-grab active:cursor-grabbing transition-all hover:shadow-md ${
+                        className={`motion-card cursor-grab active:cursor-grabbing transition-all hover:shadow-md ${
                           draggedId === assignment.id ? "opacity-50" : ""
                         } ${isOverdue ? "border-destructive/50" : ""}`}
                       >

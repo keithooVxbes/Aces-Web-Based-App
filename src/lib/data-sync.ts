@@ -7,11 +7,13 @@ const DATA_KEYS = [
   "aces-cashflow-currency",
   "aces-schedule",
   "aces-notes",
+  "aces-note-folders",
 ] as const
 
 const SETTINGS_KEYS = [
   "aces-weather-city",
   "vite-ui-theme",
+  "aces-dashboard-layout",
 ] as const
 
 const SYNC_META_KEY = "aces-last-sync"
@@ -27,6 +29,7 @@ export interface AcesExportData {
 export interface ImportSummary {
   assignments: number
   notes: number
+  folders: number
   transactions: number
   cashflowSubscriptions: number
   scheduleClasses: number
@@ -79,6 +82,7 @@ function buildImportSummary(exportData: AcesExportData): ImportSummary {
   return {
     assignments: countItems(d["aces-assignments"]),
     notes: countItems(d["aces-notes"]),
+    folders: countItems(d["aces-note-folders"]),
     transactions: countItems(d["aces-cashflow-transactions"]),
     cashflowSubscriptions: countItems(d["aces-cashflow-subscriptions"]),
     scheduleClasses: countItems(d["aces-schedule"]),

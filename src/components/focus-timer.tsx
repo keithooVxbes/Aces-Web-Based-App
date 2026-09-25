@@ -77,7 +77,7 @@ export function FocusTimer() {
   const circumference = 2 * Math.PI * radius
 
   return (
-    <Card>
+    <Card className="motion-card">
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -139,7 +139,7 @@ export function FocusTimer() {
 
           {/* Duration adjuster (only when not started) */}
           {!hasStarted && (
-            <div className="flex items-center gap-3">
+            <div className="motion-stagger flex items-center gap-3">
               <Button
                 variant="outline"
                 size="icon"
@@ -166,7 +166,7 @@ export function FocusTimer() {
 
           {/* Preset buttons (only when not started) */}
           {!hasStarted && (
-            <div className="flex gap-2">
+            <div className="motion-stagger flex gap-2">
               {PRESETS.map((preset) => (
                 <Button
                   key={preset.value}
@@ -236,7 +236,7 @@ export function FocusTimer() {
           )}
 
           {/* Controls */}
-          <div className="flex items-center gap-3">
+          <div className="motion-content-swap flex items-center gap-3">
             <Button
               size="lg"
               onClick={toggleRunning}

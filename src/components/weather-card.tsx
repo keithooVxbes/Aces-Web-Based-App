@@ -226,7 +226,7 @@ export function WeatherCard() {
 
   if (loading && !weather) {
     return (
-      <Card>
+      <Card className="motion-card">
         <CardHeader>
           {title}
         </CardHeader>
@@ -242,7 +242,7 @@ export function WeatherCard() {
 
   if (!weather) {
     return (
-      <Card>
+      <Card className="motion-card">
         <CardHeader>
           {title}
         </CardHeader>
@@ -258,11 +258,11 @@ export function WeatherCard() {
   const WeatherIcon = meta.icon
 
   return (
-    <Card>
+    <Card className="motion-card">
       <CardHeader className="pb-3">
         {title}
       </CardHeader>
-      <CardContent>
+      <CardContent key={`${weather.temp}-${weather.code}-${weather.isDay}`} className="motion-content-swap">
         <div className="flex flex-col gap-4">
           {/* Temperature */}
           <div className="flex items-center justify-between">
@@ -276,7 +276,7 @@ export function WeatherCard() {
           <p className="text-sm capitalize text-muted-foreground -mt-2">{meta.desc}</p>
 
           {/* Stats row */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="motion-list grid grid-cols-2 gap-3">
             <div className="flex items-center gap-2 rounded-lg bg-muted/50 p-3">
               <Thermometer className="size-4 text-muted-foreground" />
               <div>

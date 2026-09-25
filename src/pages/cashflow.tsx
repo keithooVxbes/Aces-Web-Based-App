@@ -43,7 +43,7 @@ import {
   startOfYear,
   subDays,
 } from "date-fns"
-import { Plus, Trash2, ArrowUpCircle, ArrowDownCircle, CalendarIcon, Pencil, TrendingDown } from "lucide-react"
+import { Plus, Trash2, ArrowUpCircle, ArrowDownCircle, CalendarIcon, Pencil, TrendingDown, Wallet } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Calendar } from "@/components/ui/calendar"
 import {
@@ -444,12 +444,17 @@ export default function CashflowPage() {
 
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="motion-stagger flex flex-col gap-6">
       <CurrencyPrompt />
       
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex flex-col gap-1">
-          <h1 className="text-3xl font-bold tracking-tight">Cashflow</h1>
+          <div className="flex items-center gap-2">
+            <div className="flex size-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <Wallet className="size-5" />
+            </div>
+            <h1 className="text-3xl font-bold tracking-tight">Cashflow</h1>
+          </div>
           <p className="text-muted-foreground">
             Track your income and expenses.
           </p>
@@ -542,7 +547,7 @@ export default function CashflowPage() {
                         setDate(d)
                         setIsDatePickerOpen(false)
                       }}
-                      initialFocus
+                      autoFocus
                     />
                   </PopoverContent>
                 </Popover>
@@ -595,8 +600,8 @@ export default function CashflowPage() {
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
+      <div key={`summary-${selectedMonth}`} className="motion-stagger grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Card className="motion-card">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Balance</CardTitle>
           </CardHeader>
@@ -606,7 +611,7 @@ export default function CashflowPage() {
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="motion-card">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Income</CardTitle>
             <ArrowUpCircle className="size-4 text-green-500" />
@@ -617,7 +622,7 @@ export default function CashflowPage() {
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="motion-card">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Expenses</CardTitle>
             <ArrowDownCircle className="size-4 text-red-500" />
@@ -628,7 +633,7 @@ export default function CashflowPage() {
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="motion-card">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Average Daily Spending</CardTitle>
             <TrendingDown className="size-4 text-muted-foreground" />
@@ -646,8 +651,8 @@ export default function CashflowPage() {
         </Card>
       </div>
 
-      <div className="grid gap-4 grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
-        <Card className="h-full">
+      <div key={`charts-${selectedMonth}`} className="motion-stagger grid gap-4 grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+        <Card className="motion-card h-full">
           <CardHeader className="gap-3">
             <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
               <div className="space-y-1">
@@ -681,7 +686,11 @@ export default function CashflowPage() {
                 </p>
               </div>
             ) : (
-              <ChartContainer config={spendingChartConfig} className="min-h-72 h-full w-full flex-1">
+              <ChartContainer
+                key={spendingChartMode}
+                config={spendingChartConfig}
+                className="motion-chart min-h-72 h-full w-full flex-1"
+              >
                 <BarChart accessibilityLayer data={spendingChartData} margin={{ top: 8, right: 4, left: 12, bottom: 0 }}>
                   <CartesianGrid vertical={false} />
                   <XAxis
@@ -725,7 +734,7 @@ export default function CashflowPage() {
           </CardContent>
         </Card>
 
-        <Card className="h-full">
+        <Card className="motion-card h-full">
           <CardHeader>
             <CardTitle>Spending by Category</CardTitle>
             <CardDescription>
@@ -742,7 +751,7 @@ export default function CashflowPage() {
               </div>
             ) : (
               <div className="flex h-full flex-1 flex-col gap-6">
-                <ChartContainer config={categoryChartConfig} className="mx-auto min-h-72 h-full w-full max-w-[320px] flex-1">
+                <ChartContainer config={categoryChartConfig} className="motion-chart mx-auto min-h-72 h-full w-full max-w-[320px] flex-1">
                   <PieChart accessibilityLayer>
                     <ChartTooltip
                       cursor={false}
@@ -782,7 +791,7 @@ export default function CashflowPage() {
                   </PieChart>
                 </ChartContainer>
 
-                <div className="space-y-3">
+                <div className="motion-list flex flex-col gap-3">
                   {spendingByCategoryData.map((item) => (
                     <div key={item.category} className="flex items-center justify-between gap-3 rounded-lg bg-muted/40 px-3 py-2">
                       <div className="flex min-w-0 items-center gap-2">
@@ -809,7 +818,7 @@ export default function CashflowPage() {
         </Card>
       </div>
 
-      <Card>
+      <Card className="motion-card">
         <CardHeader>
           <CardTitle>Recent Transactions</CardTitle>
           <CardDescription>
@@ -836,7 +845,7 @@ export default function CashflowPage() {
                 </TableHeader>
                 <TableBody>
                   {paginatedTransactions.map((tx) => (
-                    <TableRow key={tx.id}>
+                    <TableRow key={tx.id} className="motion-row">
                       <TableCell className="font-medium">
                         {format(new Date(tx.date), "MMM d, yyyy")}
                       </TableCell>
@@ -976,7 +985,7 @@ export default function CashflowPage() {
                       setEditDate(selectedDate)
                       setIsEditDatePickerOpen(false)
                     }}
-                    initialFocus
+                    autoFocus
                   />
                 </PopoverContent>
               </Popover>
