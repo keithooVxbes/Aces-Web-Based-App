@@ -152,7 +152,9 @@ export function ScheduleClassDialog({
     return Object.keys(nextErrors).length === 0
   }
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (!validate()) return
 
@@ -162,22 +164,37 @@ export function ScheduleClassDialog({
       room: form.room.trim(),
     }
 
-    if (classToEdit) {
-      updateClass(classToEdit.id, values)
-    } else {
-      addClass(values)
+    setIsSubmitting(true)
+    try {
+      if (classToEdit) {
+        await updateClass(classToEdit.id, values)
+      } else {
+        await addClass(values)
+      }
+      onSuccess?.()
+      setOpen(false)
+    } catch (err: any) {
+      // For now we'll just log and let the store or UI handle it, 
+      // but ideally we show the specific overlap error on the form.
+      setErrors((prev) => ({ ...prev, name: err.message || "Something went wrong" }))
+    } finally {
+      setIsSubmitting(false)
     }
-
-    onSuccess?.()
-    setOpen(false)
   }
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!classToEdit) return
-    removeClass(classToEdit.id)
-    onDelete?.(classToEdit.id)
-    setDeleteOpen(false)
-    setOpen(false)
+    setIsSubmitting(true)
+    try {
+      await removeClass(classToEdit.id)
+      onDelete?.(classToEdit.id)
+      setDeleteOpen(false)
+      setOpen(false)
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const triggerContent = trigger ?? children
@@ -301,16 +318,16 @@ export function ScheduleClassDialog({
 
             <DialogFooter className={cn(isEditing && "sm:justify-between")}>
               {isEditing ? (
-                <Button type="button" variant="destructive" onClick={() => setDeleteOpen(true)}>
+                <Button type="button" variant="destructive" onClick={() => setDeleteOpen(true)} disabled={isSubmitting}>
                   <Trash2 data-icon="inline-start" />
                   Delete class
                 </Button>
               ) : null}
               <div className="flex flex-col-reverse gap-2 sm:flex-row">
-                <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+                <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={isSubmitting}>
                   Cancel
                 </Button>
-                <Button type="submit">{isEditing ? "Save changes" : "Add class"}</Button>
+                <Button type="submit" disabled={isSubmitting}>{isEditing ? "Save changes" : "Add class"}</Button>
               </div>
             </DialogFooter>
           </form>
@@ -326,8 +343,8 @@ export function ScheduleClassDialog({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Keep class</AlertDialogCancel>
-            <AlertDialogAction variant="destructive" onClick={handleDelete}>
+            <AlertDialogCancel disabled={isSubmitting}>Keep class</AlertDialogCancel>
+            <AlertDialogAction variant="destructive" onClick={handleDelete} disabled={isSubmitting}>
               Delete class
             </AlertDialogAction>
           </AlertDialogFooter>

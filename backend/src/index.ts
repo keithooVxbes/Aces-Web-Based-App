@@ -10,6 +10,7 @@ import authRoutes from './routes/auth';
 import assignmentRoutes from './routes/assignment';
 import profileRoutes from './routes/profile';
 import noteRoutes from './routes/note';
+import scheduleRoutes from './routes/schedule';
 import { errorHandler } from './middlewares/errorHandler';
 
 const app = express();
@@ -29,6 +30,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/assignments', assignmentRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/notes', noteRoutes);
+app.use('/api/schedules', scheduleRoutes);
 
 // Error handling middleware (must be after routes)
 app.use(errorHandler);
