@@ -1,5 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, useMemo } from "react"
-import { addMonths } from "date-fns"
+import { useAuth } from "./auth-provider"
+import { supabase } from "./supabase"
+import { toast } from "sonner" // In case they use it, or fallback to console
 
 export interface Transaction {
   id: string;
@@ -7,7 +9,7 @@ export interface Transaction {
   amount: number;
   category: string;
   description: string;
-  date: string; // ISO date string
+  date: string; // ISO date string or YYYY-MM-DD
 }
 
 export interface Subscription {
@@ -15,161 +17,247 @@ export interface Subscription {
   name: string;
   amount: number;
   category: string;
-  startDate: string; // ISO date string
-  lastProcessed: string; // ISO date string
+  startDate: string; 
+  lastProcessed: string; 
 }
 
 interface CashflowStore {
   transactions: Transaction[];
   subscriptions: Subscription[];
   currency: string | null;
-  addTransaction: (tx: Omit<Transaction, "id">) => void;
-  updateTransaction: (id: string, tx: Omit<Transaction, "id">) => void;
-  removeTransaction: (id: string) => void;
-  addSubscription: (sub: Omit<Subscription, "id" | "lastProcessed">) => void;
-  removeSubscription: (id: string) => void;
-  setCurrency: (currency: string) => void;
+  isLoading: boolean;
+  addTransaction: (tx: Omit<Transaction, "id">) => Promise<void>;
+  updateTransaction: (id: string, tx: Omit<Transaction, "id">) => Promise<void>;
+  removeTransaction: (id: string) => Promise<void>;
+  addSubscription: (sub: Omit<Subscription, "id" | "lastProcessed">) => Promise<void>;
+  removeSubscription: (id: string) => Promise<void>;
+  setCurrency: (currency: string) => Promise<void>;
   isCurrencySet: boolean;
 }
 
-const STORAGE_KEY = "aces-cashflow-transactions"
-const SUBSCRIPTION_STORAGE_KEY = "aces-cashflow-subscriptions"
-const CURRENCY_KEY = "aces-cashflow-currency"
+const STORAGE_PREFIX = "aces-cashflow"
 
-function loadTransactions(): Transaction[] {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY)
-    if (stored) return JSON.parse(stored)
-  } catch {
-    // Ignore error
-  }
-  return []
+function getStorageKey(userId: string | undefined, suffix: string) {
+  return userId ? `${STORAGE_PREFIX}-${suffix}-${userId}` : `${STORAGE_PREFIX}-${suffix}`
 }
 
-function loadSubscriptions(): Subscription[] {
-  try {
-    const stored = localStorage.getItem(SUBSCRIPTION_STORAGE_KEY)
-    if (stored) return JSON.parse(stored)
-  } catch {
-    // Ignore error
-  }
-  return []
-}
-
-function loadCurrency(): string | null {
-  return localStorage.getItem(CURRENCY_KEY)
+function parseJson(value: string | null): any {
+  if (!value) return null
+  try { return JSON.parse(value) } catch { return null }
 }
 
 const CashflowContext = createContext<CashflowStore | null>(null)
 
 export function CashflowProvider({ children }: { children: React.ReactNode }) {
-  const [transactions, setTransactions] = useState<Transaction[]>(loadTransactions)
-  const [subscriptions, setSubscriptions] = useState<Subscription[]>(loadSubscriptions)
-  const [currency, setCurrencyState] = useState<string | null>(loadCurrency)
+  const { user } = useAuth()
+  const [transactions, setTransactions] = useState<Transaction[]>([])
+  const [subscriptions, setSubscriptions] = useState<Subscription[]>([])
+  const [currency, setCurrencyState] = useState<string | null>(null)
+  const [isLoading, setIsLoading] = useState(false)
 
+  const API_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api"
+  
+  const getAuthToken = async () => {
+    const { data } = await supabase.auth.getSession()
+    return data.session?.access_token
+  }
+
+  // Load from local storage initially
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(transactions))
-  }, [transactions])
-
-  useEffect(() => {
-    localStorage.setItem(SUBSCRIPTION_STORAGE_KEY, JSON.stringify(subscriptions))
-  }, [subscriptions])
-
-  // Automatically process recurring subscriptions
-  useEffect(() => {
-    if (subscriptions.length === 0) return;
-
-    let hasUpdates = false;
-    const now = new Date();
-    const newTransactions: Transaction[] = [];
-
-    const updatedSubs = subscriptions.map((sub) => {
-      let processDate = new Date(sub.lastProcessed);
-      let nextDate = addMonths(processDate, 1);
-      let subTouched = false;
-
-      while (nextDate <= now) {
-        newTransactions.push({
-          id: crypto.randomUUID(),
-          type: "expense",
-          amount: sub.amount,
-          category: sub.category,
-          description: sub.name,
-          date: nextDate.toISOString(),
-        });
-        processDate = nextDate;
-        nextDate = addMonths(nextDate, 1);
-        subTouched = true;
-      }
-
-      if (subTouched) {
-        hasUpdates = true;
-        return { ...sub, lastProcessed: processDate.toISOString() };
-      }
-      return sub;
-    });
-
-    if (hasUpdates) {
-      // Adding new transactions generated from subscriptions
-      setTransactions((prev) => [...prev, ...newTransactions]);
-      setSubscriptions(updatedSubs);
+    if (!user) {
+      setTransactions([])
+      setSubscriptions([])
+      setCurrencyState(null)
+      return
     }
-  }, [subscriptions]);
+    const cachedTx = parseJson(localStorage.getItem(getStorageKey(user.id, 'transactions'))) || []
+    const cachedSub = parseJson(localStorage.getItem(getStorageKey(user.id, 'subscriptions'))) || []
+    const cachedCur = localStorage.getItem(getStorageKey(user.id, 'currency')) || null
+    setTransactions(cachedTx)
+    setSubscriptions(cachedSub)
+    setCurrencyState(cachedCur)
+  }, [user?.id])
 
+  // Fetch API Data
+  useEffect(() => {
+    if (!user) return
+    let isMounted = true
 
-  const setCurrency = useCallback((newCurrency: string) => {
+    const fetchData = async () => {
+      setIsLoading(true)
+      try {
+        const token = await getAuthToken()
+        if (!token) return
+
+        const [txRes, subRes, curRes] = await Promise.all([
+          fetch(`${API_URL}/cashflow/transactions`, { headers: { 'Authorization': `Bearer ${token}` } }),
+          fetch(`${API_URL}/cashflow/subscriptions`, { headers: { 'Authorization': `Bearer ${token}` } }),
+          fetch(`${API_URL}/cashflow/currency`, { headers: { 'Authorization': `Bearer ${token}` } })
+        ])
+
+        if (txRes.ok && isMounted) {
+          const txData = await txRes.json()
+          setTransactions(txData)
+          localStorage.setItem(getStorageKey(user.id, 'transactions'), JSON.stringify(txData))
+        }
+        
+        if (subRes.ok && isMounted) {
+          const subData = await subRes.json()
+          setSubscriptions(subData)
+          localStorage.setItem(getStorageKey(user.id, 'subscriptions'), JSON.stringify(subData))
+        }
+
+        if (curRes.ok && isMounted) {
+          const curData = await curRes.json()
+          setCurrencyState(curData.currency)
+          localStorage.setItem(getStorageKey(user.id, 'currency'), curData.currency)
+        }
+      } catch (err) {
+        console.error("Cashflow API Fetch Error:", err)
+      } finally {
+        if (isMounted) setIsLoading(false)
+      }
+    }
+
+    fetchData()
+    return () => { isMounted = false }
+  }, [user?.id])
+
+  // Keep local storage synced for mutations
+  useEffect(() => {
+    if (!user) return
+    localStorage.setItem(getStorageKey(user.id, 'transactions'), JSON.stringify(transactions))
+  }, [transactions, user?.id])
+
+  useEffect(() => {
+    if (!user) return
+    localStorage.setItem(getStorageKey(user.id, 'subscriptions'), JSON.stringify(subscriptions))
+  }, [subscriptions, user?.id])
+
+  // --- ACTIONS ---
+  
+  const setCurrency = useCallback(async (newCurrency: string) => {
+    if (!user) return
+    const prev = currency
     setCurrencyState(newCurrency)
-    localStorage.setItem(CURRENCY_KEY, newCurrency)
-  }, [])
+    localStorage.setItem(getStorageKey(user.id, 'currency'), newCurrency)
 
-  const addTransaction = useCallback((tx: Omit<Transaction, "id">) => {
-    const newTx: Transaction = {
-      ...tx,
-      id: crypto.randomUUID(),
+    try {
+      const token = await getAuthToken()
+      const res = await fetch(`${API_URL}/cashflow/currency`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ currency: newCurrency })
+      })
+      if (!res.ok) throw new Error("Failed to save currency")
+    } catch (err) {
+      console.error(err)
+      setCurrencyState(prev) // rollback
     }
-    setTransactions((prev) => [...prev, newTx])
-  }, [])
+  }, [user?.id, currency])
 
-  const updateTransaction = useCallback((id: string, tx: Omit<Transaction, "id">) => {
-    setTransactions((prev) =>
-      prev.map((transaction) =>
-        transaction.id === id
-          ? {
-              ...tx,
-              id,
-            }
-          : transaction
-      )
-    )
-  }, [])
+  const addTransaction = useCallback(async (tx: Omit<Transaction, "id">) => {
+    if (!user) return
+    const token = await getAuthToken()
+    const payload = { ...tx, id: crypto.randomUUID() }
 
-  const removeTransaction = useCallback((id: string) => {
-    setTransactions((prev) => prev.filter((t) => t.id !== id))
-  }, [])
+    const res = await fetch(`${API_URL}/cashflow/transactions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify(payload)
+    })
 
-  const addSubscription = useCallback((sub: Omit<Subscription, "id" | "lastProcessed">) => {
-    const startDate = new Date(sub.startDate);
-    // Initial lastprocessed is one month prior to the start date
-    // so it naturally fires on its registered day of month.
-    const initialLastProcessed = addMonths(startDate, -1).toISOString();
+    if (!res.ok) throw new Error("Failed to add transaction")
+    const createdTx = await res.json()
+    setTransactions((prev) => [createdTx, ...prev])
+  }, [user?.id])
 
-    const newSub: Subscription = {
-      ...sub,
-      id: crypto.randomUUID(),
-      lastProcessed: initialLastProcessed,
+  const updateTransaction = useCallback(async (id: string, tx: Omit<Transaction, "id">) => {
+    if (!user) return
+    let previousTx: Transaction[] = []
+    setTransactions((prev) => {
+      previousTx = [...prev]
+      return prev.map((t) => (t.id === id ? { ...t, ...tx } : t))
+    })
+
+    try {
+      const token = await getAuthToken()
+      const res = await fetch(`${API_URL}/cashflow/transactions/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify(tx)
+      })
+      if (!res.ok) throw new Error("Failed to update transaction")
+    } catch (err) {
+      setTransactions(previousTx)
+      throw err
     }
-    setSubscriptions((prev) => [...prev, newSub])
-  }, [])
+  }, [user?.id])
 
-  const removeSubscription = useCallback((id: string) => {
-    setSubscriptions((prev) => prev.filter((s) => s.id !== id))
-  }, [])
+  const removeTransaction = useCallback(async (id: string) => {
+    if (!user) return
+    let previousTx: Transaction[] = []
+    setTransactions((prev) => {
+      previousTx = [...prev]
+      return prev.filter((t) => t.id !== id)
+    })
+
+    try {
+      const token = await getAuthToken()
+      const res = await fetch(`${API_URL}/cashflow/transactions/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      if (!res.ok) throw new Error("Failed to delete transaction")
+    } catch (err) {
+      setTransactions(previousTx)
+      throw err
+    }
+  }, [user?.id])
+
+  const addSubscription = useCallback(async (sub: Omit<Subscription, "id" | "lastProcessed">) => {
+    if (!user) return
+    const token = await getAuthToken()
+    const payload = { ...sub, id: crypto.randomUUID() }
+
+    const res = await fetch(`${API_URL}/cashflow/subscriptions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify(payload)
+    })
+
+    if (!res.ok) throw new Error("Failed to add subscription")
+    const createdSub = await res.json()
+    setSubscriptions((prev) => [...prev, createdSub])
+  }, [user?.id])
+
+  const removeSubscription = useCallback(async (id: string) => {
+    if (!user) return
+    let previousSub: Subscription[] = []
+    setSubscriptions((prev) => {
+      previousSub = [...prev]
+      return prev.filter((s) => s.id !== id)
+    })
+
+    try {
+      const token = await getAuthToken()
+      const res = await fetch(`${API_URL}/cashflow/subscriptions/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      if (!res.ok) throw new Error("Failed to delete subscription")
+    } catch (err) {
+      setSubscriptions(previousSub)
+      throw err
+    }
+  }, [user?.id])
 
   const value = useMemo(
     () => ({
       transactions,
       subscriptions,
       currency,
+      isLoading,
       addTransaction,
       updateTransaction,
       removeTransaction,
@@ -178,7 +266,7 @@ export function CashflowProvider({ children }: { children: React.ReactNode }) {
       setCurrency,
       isCurrencySet: currency !== null && currency.trim() !== "",
     }),
-    [transactions, subscriptions, currency, addTransaction, updateTransaction, removeTransaction, addSubscription, removeSubscription, setCurrency]
+    [transactions, subscriptions, currency, isLoading, addTransaction, updateTransaction, removeTransaction, addSubscription, removeSubscription, setCurrency]
   )
 
   return <CashflowContext.Provider value={value}>{children}</CashflowContext.Provider>
