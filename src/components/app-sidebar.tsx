@@ -58,7 +58,7 @@ const data = {
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const location = useLocation()
   const { profile } = useProfile()
-  const profileBio = profile.bio.trim() || "No bio set"
+  const displayEmail = profile.email || "user@example.com"
 
   return (
     <Sidebar collapsible="icon" {...props}>
@@ -124,7 +124,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                   <span className="truncate font-semibold">{profile.username}</span>
                   <span className="relative h-4 overflow-hidden text-xs text-muted-foreground">
                     <span className="absolute inset-0 truncate transition-all duration-200 group-hover/menu-button:-translate-y-full group-hover/menu-button:opacity-0">
-                      {profileBio}
+                      {displayEmail}
                     </span>
                     <span className="absolute inset-0 truncate translate-y-full opacity-0 transition-all duration-200 group-hover/menu-button:translate-y-0 group-hover/menu-button:opacity-100">
                       Settings

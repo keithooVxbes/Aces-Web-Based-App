@@ -1,5 +1,5 @@
 import { Suspense, lazy } from "react"
-import { HashRouter as Router, Routes, Route } from "react-router-dom"
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom"
 import { MainLayout } from "./components/layout"
 import { AssignmentProvider } from "./lib/assignment-store"
 import { ScheduleProvider } from "./lib/schedule-store"
@@ -7,6 +7,7 @@ import { ProfileProvider } from "./lib/profile-store"
 import { NotesProvider } from "./lib/notes-store"
 import { CashflowProvider } from "./lib/cashflow-store"
 import { Skeleton } from "./components/ui/skeleton"
+import { AuthProvider, useAuth } from "./lib/auth-provider"
 
 const DashboardPage = lazy(() => import("./pages/dashboard"))
 const AssignmentsPage = lazy(() => import("./pages/assignments"))
@@ -14,6 +15,8 @@ const SchedulePage = lazy(() => import("./pages/schedule"))
 const SettingsPage = lazy(() => import("./pages/settings"))
 const NotesPage = lazy(() => import("./pages/notes"))
 const CashflowPage = lazy(() => import("./pages/cashflow"))
+const LoginPage = lazy(() => import("./pages/login"))
+const RegisterPage = lazy(() => import("./pages/register"))
 
 import "./App.css"
 
@@ -32,31 +35,61 @@ function PageFallback() {
   )
 }
 
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const { user, isLoading } = useAuth()
+  
+  if (isLoading) {
+    return <div className="min-h-screen bg-background grid place-items-center"><PageFallback /></div>
+  }
+  
+  if (!user) {
+    return <Navigate to="/login" replace />
+  }
+  
+  return <>{children}</>
+}
+
 function App() {
   return (
     <Router>
-      <ProfileProvider>
-        <NotesProvider>
-          <AssignmentProvider>
-            <ScheduleProvider>
-              <CashflowProvider>
-                <MainLayout>
+      <AuthProvider>
+        <ProfileProvider>
+          <NotesProvider>
+            <AssignmentProvider>
+              <ScheduleProvider>
+                <CashflowProvider>
                   <Suspense fallback={<PageFallback />}>
                     <Routes>
-                      <Route path="/" element={<DashboardPage />} />
-                      <Route path="/cashflow" element={<CashflowPage />} />
-                      <Route path="/assignments" element={<AssignmentsPage />} />
-                      <Route path="/schedule" element={<SchedulePage />} />
-                      <Route path="/notes" element={<NotesPage />} />
-                      <Route path="/settings" element={<SettingsPage />} />
+                      {/* Public Auth Routes */}
+                      <Route path="/login" element={<LoginPage />} />
+                      <Route path="/register" element={<RegisterPage />} />
+                      
+                      {/* Protected Workspace Routes */}
+                      <Route
+                        path="/*"
+                        element={
+                          <ProtectedRoute>
+                            <MainLayout>
+                              <Routes>
+                                <Route path="/" element={<DashboardPage />} />
+                                <Route path="/cashflow" element={<CashflowPage />} />
+                                <Route path="/assignments" element={<AssignmentsPage />} />
+                                <Route path="/schedule" element={<SchedulePage />} />
+                                <Route path="/notes" element={<NotesPage />} />
+                                <Route path="/settings" element={<SettingsPage />} />
+                              </Routes>
+                            </MainLayout>
+                          </ProtectedRoute>
+                        }
+                      />
                     </Routes>
                   </Suspense>
-                </MainLayout>
-              </CashflowProvider>
-            </ScheduleProvider>
-          </AssignmentProvider>
-        </NotesProvider>
-      </ProfileProvider>
+                </CashflowProvider>
+              </ScheduleProvider>
+            </AssignmentProvider>
+          </NotesProvider>
+        </ProfileProvider>
+      </AuthProvider>
     </Router>
   )
 }

@@ -6,8 +6,10 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useRef, useEffect, useState } from "react"
-import { Camera, Save } from "lucide-react"
+import { Camera, Save, LogOut } from "lucide-react"
 import { useProfile } from "@/lib/profile-store"
+import { useNavigate } from "react-router-dom"
+import { supabase } from "@/lib/supabase"
 
 const profileFormSchema = z.object({
   username: z
@@ -28,6 +30,22 @@ export function ProfileForm() {
   const [avatarPreview, setAvatarPreview] = useState<string | null>(profile.avatar)
   const [saved, setSaved] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const navigate = useNavigate()
+  
+  const handleLogout = async () => {
+    // Clear all aces- prefixed local storage keys to prevent data leaking between accounts
+    const keysToRemove = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith("aces-")) {
+        keysToRemove.push(key);
+      }
+    }
+    keysToRemove.forEach(key => localStorage.removeItem(key));
+
+    await supabase.auth.signOut()
+    navigate("/login")
+  }
   
   const {
     register,
@@ -137,17 +155,24 @@ export function ProfileForm() {
         </div>
       </div>
       
-      <div className="flex items-center justify-end gap-4 border-t pt-6">
-        {saved && (
-          <span className="text-sm text-primary font-medium animate-in fade-in">
-            ✓ Profile saved!
-          </span>
-        )}
-        <Button variant="outline" type="button" onClick={() => reset({ username: profile.username, bio: profile.bio })}>Cancel</Button>
-        <Button type="submit" className="min-w-[120px]">
-          <Save className="size-4 mr-2" />
-          Save Changes
+      <div className="flex items-center justify-between border-t pt-6">
+        <Button variant="destructive" type="button" onClick={handleLogout}>
+          <LogOut className="size-4 mr-2" />
+          Sign Out
         </Button>
+
+        <div className="flex items-center gap-4">
+          {saved && (
+            <span className="text-sm text-primary font-medium animate-in fade-in">
+              ✓ Profile saved!
+            </span>
+          )}
+          <Button variant="outline" type="button" onClick={() => reset({ username: profile.username, bio: profile.bio })}>Cancel</Button>
+          <Button type="submit" className="min-w-[120px]">
+            <Save className="size-4 mr-2" />
+            Save Changes
+          </Button>
+        </div>
       </div>
     </form>
   )

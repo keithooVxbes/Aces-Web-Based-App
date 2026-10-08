@@ -7,6 +7,8 @@ import {
   useState,
   type ReactNode,
 } from "react"
+import { useAuth } from "./auth-provider"
+import { supabase } from "./supabase"
 
 export interface Note {
   id: string
@@ -43,17 +45,23 @@ interface NotesStore extends NotesState {
   moveNote: (draggedId: string, targetId: string) => void
 }
 
-const NOTES_STORAGE_KEY = "aces-notes"
-const FOLDERS_STORAGE_KEY = "aces-note-folders"
+const NOTES_STORAGE_PREFIX = "aces-notes"
+const FOLDERS_STORAGE_PREFIX = "aces-note-folders"
 
-const NotesContext = createContext<NotesStore | null>(null)
+function getStorageKey(prefix: string, userId: string | undefined) {
+  return userId ? `${prefix}-${userId}` : prefix
+}
 
 function createId(prefix: string) {
+  // Postgres requires valid UUIDs. Ignore the prefix.
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
-    return `${prefix}-${crypto.randomUUID()}`
+    return crypto.randomUUID()
   }
-
-  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2)}`
+  // Fallback UUID v4 generator
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8)
+    return v.toString(16)
+  })
 }
 
 function readStorageItem(key: string) {
@@ -66,7 +74,6 @@ function readStorageItem(key: string) {
 
 function parseJson(value: string | null): unknown {
   if (!value) return null
-
   try {
     return JSON.parse(value)
   } catch {
@@ -74,121 +81,96 @@ function parseJson(value: string | null): unknown {
   }
 }
 
-function loadFolders(): NoteFolder[] {
-  const parsed = parseJson(readStorageItem(FOLDERS_STORAGE_KEY))
-  if (!Array.isArray(parsed)) return []
-
-  const seenIds = new Set<string>()
-  const seenNames = new Set<string>()
-
-  return parsed.flatMap((value) => {
-    if (!value || typeof value !== "object") return []
-    const candidate = value as Record<string, unknown>
-    const id = typeof candidate.id === "string" ? candidate.id : ""
-    const name = typeof candidate.name === "string" ? candidate.name.trim() : ""
-    const normalizedName = name.toLocaleLowerCase()
-    const createdAt = typeof candidate.createdAt === "number" ? candidate.createdAt : Date.now()
-
-    if (
-      !id ||
-      !name ||
-      isReservedFolderName(normalizedName) ||
-      seenIds.has(id) ||
-      seenNames.has(normalizedName)
-    ) {
-      return []
-    }
-    seenIds.add(id)
-    seenNames.add(normalizedName)
-
-    return [{ id, name, createdAt }]
-  })
-}
-
-function loadNotes(folders: NoteFolder[]): Note[] {
-  const parsed = parseJson(readStorageItem(NOTES_STORAGE_KEY))
-  if (!Array.isArray(parsed)) return []
-
-  const folderIds = new Set(folders.map((folder) => folder.id))
-  const seenIds = new Set<string>()
-
-  return parsed.flatMap((value) => {
-    if (!value || typeof value !== "object") return []
-    const candidate = value as Record<string, unknown>
-    const id = typeof candidate.id === "string" ? candidate.id : ""
-    if (!id || seenIds.has(id)) return []
-    seenIds.add(id)
-
-    const folderId = typeof candidate.folderId === "string" && folderIds.has(candidate.folderId)
-      ? candidate.folderId
-      : null
-
-    return [{
-      id,
-      content: typeof candidate.content === "string" ? candidate.content : "",
-      lastModified: typeof candidate.lastModified === "number" ? candidate.lastModified : Date.now(),
-      pinned: typeof candidate.pinned === "boolean" ? candidate.pinned : false,
-      folderId,
-    }]
-  })
-}
-
-function loadInitialState(): NotesState {
-  const folders = loadFolders()
-  return {
-    folders,
-    notes: loadNotes(folders),
-  }
-}
-
-function normalizeFolderName(name: string) {
-  return name.trim().replace(/\s+/g, " ")
-}
-
-function folderNameExists(folders: NoteFolder[], name: string, ignoredId?: string) {
-  const normalizedName = name.toLocaleLowerCase()
-  return folders.some(
-    (folder) => folder.id !== ignoredId && folder.name.toLocaleLowerCase() === normalizedName,
-  )
-}
-
-function isReservedFolderName(name: string) {
-  return name.toLocaleLowerCase() === "inbox"
-}
+const NotesContext = createContext<NotesStore | null>(null)
 
 export function NotesProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<NotesState>(loadInitialState)
-  const [activeNoteId, setActiveNoteId] = useState<string | null>(
-    () => state.notes[0]?.id ?? null,
-  )
+  const { user } = useAuth()
+  
+  const [state, setState] = useState<NotesState>({ notes: [], folders: [] })
+  const [activeNoteId, setActiveNoteId] = useState<string | null>(null)
+  
+  // Helpers
+  const getAuthToken = async () => {
+    const { data } = await supabase.auth.getSession()
+    return data.session?.access_token
+  }
+  
+  const API_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api"
 
+  // 1. Load Local Fallback
   useEffect(() => {
-    const timeoutId = window.setTimeout(() => {
+    if (!user) {
+      console.log("[DEBUG] No user, resetting local fallback state.");
+      setState({ notes: [], folders: [] })
+      return
+    }
+    console.log("[DEBUG] Loading local fallback for user:", user.id);
+    const foldersData = parseJson(readStorageItem(getStorageKey(FOLDERS_STORAGE_PREFIX, user.id))) as NoteFolder[] || []
+    const notesData = parseJson(readStorageItem(getStorageKey(NOTES_STORAGE_PREFIX, user.id))) as Note[] || []
+    setState({ folders: foldersData, notes: notesData })
+  }, [user?.id])
+
+  // 2. Fetch API Data
+  useEffect(() => {
+    if (!user) return
+    const fetchData = async () => {
+      console.log("[DEBUG] Fetching notes API for user:", user.id);
       try {
-        localStorage.setItem(NOTES_STORAGE_KEY, JSON.stringify(state.notes))
-        localStorage.setItem(FOLDERS_STORAGE_KEY, JSON.stringify(state.folders))
-      } catch {
-        // Local storage can be unavailable in restricted browser contexts.
+        const token = await getAuthToken()
+        if (!token) return
+
+        const [foldersRes, notesRes] = await Promise.all([
+          fetch(`${API_URL}/notes/folders`, { headers: { 'Authorization': `Bearer ${token}` } }),
+          fetch(`${API_URL}/notes`, { headers: { 'Authorization': `Bearer ${token}` } })
+        ])
+
+        if (!foldersRes.ok || !notesRes.ok) throw new Error("Failed to fetch data")
+
+        const fetchedFolders: NoteFolder[] = await foldersRes.json()
+        const fetchedNotes: Note[] = await notesRes.json()
+
+        console.log("[DEBUG] API fetch success. Notes count:", fetchedNotes.length);
+        setState({ folders: fetchedFolders, notes: fetchedNotes })
+        
+        // Cache locally
+        localStorage.setItem(getStorageKey(FOLDERS_STORAGE_PREFIX, user.id), JSON.stringify(fetchedFolders))
+        localStorage.setItem(getStorageKey(NOTES_STORAGE_PREFIX, user.id), JSON.stringify(fetchedNotes))
+
+      } catch (err) {
+        console.error("Notes Fetch API Error:", err)
       }
-    }, 250)
+    }
+    fetchData()
+  }, [user?.id])
 
-    return () => window.clearTimeout(timeoutId)
-  }, [state])
-
+  // Track active note
   useEffect(() => {
+    console.log("[DEBUG] useEffect [state.notes] triggered. Current notes length:", state.notes.length);
     setActiveNoteId((currentId) => {
-      if (currentId && state.notes.some((note) => note.id === currentId)) {
+      console.log("[DEBUG] setActiveNoteId evaluator. currentId:", currentId);
+      if (currentId && state.notes.some((n) => n.id === currentId)) {
+        console.log("[DEBUG] Keeping current activeNoteId:", currentId);
         return currentId
       }
-
-      return state.notes[0]?.id ?? null
+      const fallbackId = state.notes.length > 0 ? state.notes[0].id : null;
+      console.log("[DEBUG] currentId not found or null, falling back to:", fallbackId);
+      return fallbackId
     })
   }, [state.notes])
 
-  const createNote = useCallback((folderId: string | null = null) => {
-    const validFolderId = folderId && state.folders.some((folder) => folder.id === folderId)
-      ? folderId
-      : null
+  // Keep local storage up to date on changes
+  useEffect(() => {
+    if (!user) return
+    localStorage.setItem(getStorageKey(NOTES_STORAGE_PREFIX, user.id), JSON.stringify(state.notes))
+    localStorage.setItem(getStorageKey(FOLDERS_STORAGE_PREFIX, user.id), JSON.stringify(state.folders))
+  }, [state, user])
+
+  // --- ACTIONS ---
+
+  const createNote = useCallback(async (folderId: string | null = null) => {
+    if (!user) return
+    const validFolderId = folderId && state.folders.some((f) => f.id === folderId) ? folderId : null
+    
     const newNote: Note = {
       id: createId("note"),
       content: "",
@@ -197,154 +179,324 @@ export function NotesProvider({ children }: { children: ReactNode }) {
       folderId: validFolderId,
     }
 
-    setState((prev) => ({
-      ...prev,
-      notes: [newNote, ...prev.notes],
-    }))
+    console.log(`[DEBUG] createNote: Creating new note ${newNote.id} in folder ${validFolderId}`);
+    
+    setState(prev => ({ ...prev, notes: [newNote, ...prev.notes] }))
     setActiveNoteId(newNote.id)
-  }, [state.folders])
+    console.log(`[DEBUG] createNote: Set optimistic state and activeNoteId to ${newNote.id}`);
 
-  const updateNote = useCallback((id: string, content: string) => {
-    setState((prev) => ({
-      ...prev,
-      notes: prev.notes.map((note) =>
-        note.id === id ? { ...note, content, lastModified: Date.now() } : note,
-      ),
-    }))
-  }, [])
+    try {
+      const token = await getAuthToken()
+      const res = await fetch(`${API_URL}/notes`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify(newNote)
+      })
+      if (!res.ok) {
+        const errorText = await res.text()
+        console.error(`[DEBUG] createNote: POST failed with status ${res.status}. Body: ${errorText}`);
+        throw new Error("Failed to save note")
+      }
+      console.log(`[DEBUG] createNote: POST success for ${newNote.id}`);
+    } catch (err) {
+      console.error("[DEBUG] createNote: Exception caught, rolling back.", err)
+      setState(prev => ({ ...prev, notes: prev.notes.filter(n => n.id !== newNote.id) }))
+    }
+  }, [state.folders, user?.id])
 
-  const moveNote = useCallback((draggedId: string, targetId: string) => {
-    if (draggedId === targetId) return
+  const updateNote = useCallback(async (id: string, content: string) => {
+    if (!user) return
+    
+    // Backup for rollback
+    let oldNote: Note | undefined
+    
+    setState(prev => {
+      oldNote = prev.notes.find(n => n.id === id)
+      return {
+        ...prev,
+        notes: prev.notes.map(n => n.id === id ? { ...n, content, lastModified: Date.now() } : n)
+      }
+    })
 
-    setState((prev) => {
-      const draggedIndex = prev.notes.findIndex((note) => note.id === draggedId)
-      const targetIndex = prev.notes.findIndex((note) => note.id === targetId)
+    try {
+      const token = await getAuthToken()
+      const res = await fetch(`${API_URL}/notes/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ content, lastModified: Date.now() })
+      })
+      if (!res.ok) throw new Error("Failed to update note")
+    } catch (err) {
+      console.error(err)
+      if (oldNote) {
+        setState(prev => ({
+          ...prev,
+          notes: prev.notes.map(n => n.id === id ? oldNote! : n)
+        }))
+      }
+    }
+  }, [user?.id])
+
+  const moveNote = useCallback(async (draggedId: string, targetId: string) => {
+    if (!user || draggedId === targetId) return
+    
+    let previousNotes: Note[] = []
+    let newOrderedIds: string[] = []
+
+    setState(prev => {
+      previousNotes = [...prev.notes]
+      const draggedIndex = prev.notes.findIndex(n => n.id === draggedId)
+      const targetIndex = prev.notes.findIndex(n => n.id === targetId)
       if (draggedIndex === -1 || targetIndex === -1) return prev
 
       const next = [...prev.notes]
       const draggedNote = next[draggedIndex]
-      next[draggedIndex] = next[targetIndex]
-      next[targetIndex] = draggedNote
+      next.splice(draggedIndex, 1) // remove from old
+      next.splice(targetIndex, 0, draggedNote) // insert at new
+      
+      newOrderedIds = next.map(n => n.id)
       return { ...prev, notes: next }
     })
-  }, [])
 
-  const setNotePinned = useCallback((id: string, pinned: boolean) => {
-    setState((prev) => {
-      const noteIndex = prev.notes.findIndex((note) => note.id === id)
+    if (newOrderedIds.length > 0) {
+      try {
+        const token = await getAuthToken()
+        const res = await fetch(`${API_URL}/notes/reorder`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ orderedIds: newOrderedIds })
+        })
+        if (!res.ok) throw new Error("Failed to reorder")
+      } catch (err) {
+        console.error(err)
+        setState(prev => ({ ...prev, notes: previousNotes })) // Rollback
+      }
+    }
+  }, [user?.id])
+
+  const setNotePinned = useCallback(async (id: string, pinned: boolean) => {
+    if (!user) return
+    
+    let oldNotes: Note[] = []
+    
+    setState(prev => {
+      oldNotes = [...prev.notes]
+      const noteIndex = prev.notes.findIndex(n => n.id === id)
       if (noteIndex === -1) return prev
 
-      const current = prev.notes[noteIndex]
-      if (current.pinned === pinned) return prev
-
-      const updatedNote = { ...current, pinned }
-      const withoutCurrent = prev.notes.filter((note) => note.id !== id)
+      const updatedNote = { ...prev.notes[noteIndex], pinned }
+      const withoutCurrent = prev.notes.filter(n => n.id !== id)
 
       if (pinned) {
         return { ...prev, notes: [updatedNote, ...withoutCurrent] }
       }
-
-      const firstUnpinnedIndex = withoutCurrent.findIndex((note) => !note.pinned)
-      const insertionIndex = firstUnpinnedIndex === -1
-        ? withoutCurrent.length
-        : firstUnpinnedIndex
-
+      
+      const firstUnpinnedIndex = withoutCurrent.findIndex(n => !n.pinned)
+      const insertionIndex = firstUnpinnedIndex === -1 ? withoutCurrent.length : firstUnpinnedIndex
+      
       const next = [...withoutCurrent]
       next.splice(insertionIndex, 0, updatedNote)
       return { ...prev, notes: next }
     })
-  }, [])
 
-  const setNoteFolder = useCallback((id: string, folderId: string | null) => {
-    setState((prev) => {
-      if (folderId !== null && !prev.folders.some((folder) => folder.id === folderId)) {
-        return prev
-      }
+    try {
+      const token = await getAuthToken()
+      const res = await fetch(`${API_URL}/notes/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ pinned })
+      })
+      if (!res.ok) throw new Error("Failed to update pinned state")
+    } catch (err) {
+      console.error(err)
+      setState(prev => ({ ...prev, notes: oldNotes }))
+    }
+  }, [user?.id])
 
-      const noteIndex = prev.notes.findIndex((note) => note.id === id)
-      if (noteIndex === -1 || prev.notes[noteIndex].folderId === folderId) return prev
-
+  const setNoteFolder = useCallback(async (id: string, folderId: string | null) => {
+    if (!user) return
+    let oldNotes: Note[] = []
+    
+    setState(prev => {
+      oldNotes = [...prev.notes]
       return {
         ...prev,
-        notes: prev.notes.map((note) =>
-          note.id === id ? { ...note, folderId } : note,
-        ),
+        notes: prev.notes.map(n => n.id === id ? { ...n, folderId } : n)
       }
     })
-  }, [])
+
+    try {
+      const token = await getAuthToken()
+      const res = await fetch(`${API_URL}/notes/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ folderId })
+      })
+      if (!res.ok) throw new Error("Failed to set folder")
+    } catch (err) {
+      console.error(err)
+      setState(prev => ({ ...prev, notes: oldNotes }))
+    }
+  }, [user?.id])
 
   const createFolder = useCallback((name: string) => {
-    const normalizedName = normalizeFolderName(name)
-    if (!normalizedName || isReservedFolderName(normalizedName) || folderNameExists(state.folders, normalizedName)) return null
+    if (!user) return null
+    const normalizedName = name.trim().replace(/\s+/g, " ").toLocaleLowerCase()
+    if (!normalizedName || normalizedName === "inbox") return null
+    if (state.folders.some(f => f.name.toLocaleLowerCase() === normalizedName)) return null
 
-    const folder: NoteFolder = {
+    const newFolder: NoteFolder = {
       id: createId("folder"),
       name: normalizedName,
-      createdAt: Date.now(),
+      createdAt: Date.now()
     }
 
-    setState((prev) => {
-      if (folderNameExists(prev.folders, normalizedName)) return prev
-      return { ...prev, folders: [...prev.folders, folder] }
+    setState(prev => ({ ...prev, folders: [...prev.folders, newFolder] }))
+
+    getAuthToken().then(token => {
+      fetch(`${API_URL}/notes/folders`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify(newFolder)
+      }).catch(err => {
+        console.error(err)
+        setState(prev => ({ ...prev, folders: prev.folders.filter(f => f.id !== newFolder.id) }))
+      })
     })
 
-    return folder.id
-  }, [state.folders])
+    return newFolder.id
+  }, [state.folders, user?.id])
 
   const renameFolder = useCallback((id: string, name: string) => {
-    const normalizedName = normalizeFolderName(name)
-    if (
-      !normalizedName ||
-      isReservedFolderName(normalizedName) ||
-      !state.folders.some((folder) => folder.id === id) ||
-      folderNameExists(state.folders, normalizedName, id)
-    ) {
-      return false
-    }
+    if (!user) return false
+    const normalizedName = name.trim().replace(/\s+/g, " ").toLocaleLowerCase()
+    if (!normalizedName || normalizedName === "inbox") return false
+    
+    if (state.folders.some(f => f.id !== id && f.name.toLocaleLowerCase() === normalizedName)) return false
 
-    setState((prev) => ({
-      ...prev,
-      folders: prev.folders.map((folder) =>
-        folder.id === id ? { ...folder, name: normalizedName } : folder,
-      ),
-    }))
+    let oldFolders: NoteFolder[] = []
+    
+    setState(prev => {
+      oldFolders = [...prev.folders]
+      return {
+        ...prev,
+        folders: prev.folders.map(f => f.id === id ? { ...f, name: normalizedName } : f)
+      }
+    })
+
+    getAuthToken().then(token => {
+      fetch(`${API_URL}/notes/folders/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ name: normalizedName })
+      }).then(res => {
+        if (!res.ok) throw new Error("Failed to rename folder")
+      }).catch(err => {
+        console.error(err)
+        setState(prev => ({ ...prev, folders: oldFolders }))
+      })
+    })
 
     return true
-  }, [state.folders])
+  }, [state.folders, user?.id])
 
-  const deleteFolder = useCallback((id: string) => {
-    setState((prev) => ({
-      ...prev,
-      folders: prev.folders.filter((folder) => folder.id !== id),
-      notes: prev.notes.map((note) =>
-        note.folderId === id ? { ...note, folderId: null } : note,
-      ),
-    }))
-  }, [])
+  const deleteFolder = useCallback(async (id: string) => {
+    if (!user) return
+    let oldState: NotesState = { notes: [], folders: [] }
+    
+    setState(prev => {
+      oldState = { folders: [...prev.folders], notes: [...prev.notes] }
+      return {
+        ...prev,
+        folders: prev.folders.filter(f => f.id !== id),
+        notes: prev.notes.map(n => n.folderId === id ? { ...n, folderId: null } : n)
+      }
+    })
 
-  const deleteFolderAndNotes = useCallback((id: string) => {
-    setState((prev) => ({
-      ...prev,
-      folders: prev.folders.filter((folder) => folder.id !== id),
-      notes: prev.notes.filter((note) => note.folderId !== id),
-    }))
-  }, [])
+    try {
+      const token = await getAuthToken()
+      const res = await fetch(`${API_URL}/notes/folders/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      if (!res.ok) throw new Error("Failed to delete folder")
+    } catch (err) {
+      console.error(err)
+      setState(oldState)
+    }
+  }, [user?.id])
 
-  const deleteNote = useCallback((id: string) => {
-    setState((prev) => ({
-      ...prev,
-      notes: prev.notes.filter((note) => note.id !== id),
-    }))
-  }, [])
+  const deleteFolderAndNotes = useCallback(async (id: string) => {
+    if (!user) return
+    let oldState: NotesState = { notes: [], folders: [] }
+    
+    setState(prev => {
+      oldState = { folders: [...prev.folders], notes: [...prev.notes] }
+      return {
+        ...prev,
+        folders: prev.folders.filter(f => f.id !== id),
+        notes: prev.notes.filter(n => n.folderId !== id)
+      }
+    })
 
-  const deleteNotes = useCallback((ids: string[]) => {
-    if (ids.length === 0) return
-    const idsToDelete = new Set(ids)
-    setState((prev) => ({
-      ...prev,
-      notes: prev.notes.filter((note) => !idsToDelete.has(note.id)),
-    }))
-  }, [])
+    try {
+      const token = await getAuthToken()
+      const res = await fetch(`${API_URL}/notes/folders/${id}/with-notes`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      if (!res.ok) throw new Error("Failed to delete folder and notes")
+    } catch (err) {
+      console.error(err)
+      setState(oldState)
+    }
+  }, [user?.id])
+
+  const deleteNote = useCallback(async (id: string) => {
+    if (!user) return
+    let oldNotes: Note[] = []
+    
+    setState(prev => {
+      oldNotes = [...prev.notes]
+      return { ...prev, notes: prev.notes.filter(n => n.id !== id) }
+    })
+
+    try {
+      const token = await getAuthToken()
+      const res = await fetch(`${API_URL}/notes/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      if (!res.ok) throw new Error("Failed to delete note")
+    } catch (err) {
+      console.error(err)
+      setState(prev => ({ ...prev, notes: oldNotes }))
+    }
+  }, [user?.id])
+
+  const deleteNotes = useCallback(async (ids: string[]) => {
+    if (!user || ids.length === 0) return
+    let oldNotes: Note[] = []
+    
+    setState(prev => {
+      oldNotes = [...prev.notes]
+      const idsToDelete = new Set(ids)
+      return { ...prev, notes: prev.notes.filter(n => !idsToDelete.has(n.id)) }
+    })
+
+    try {
+      const token = await getAuthToken()
+      const res = await fetch(`${API_URL}/notes/batch-delete`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ ids })
+      })
+      if (!res.ok) throw new Error("Failed to batch delete notes")
+    } catch (err) {
+      console.error(err)
+      setState(prev => ({ ...prev, notes: oldNotes }))
+    }
+  }, [user?.id])
 
   const value = useMemo<NotesStore>(() => ({
     ...state,
