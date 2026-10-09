@@ -257,6 +257,6 @@ export const cashflowService = {
       .eq('id', userId)
       .single();
     if (error) throw error;
-    return data.currency || '$';
+    return data.currency;
   }
 };
