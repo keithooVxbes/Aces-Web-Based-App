@@ -2,7 +2,6 @@ import { createContext, useContext, useState, useEffect, useCallback, useMemo } 
 import { ScheduleClass, initialScheduleData } from "./schedule-data"
 import { useAuth } from "./auth-provider"
 import { supabase } from "./supabase"
-import { toast } from "sonner" // Ensure sonner is available for toasts, or we'll just log
 
 interface ScheduleStore {
   classes: ScheduleClass[]

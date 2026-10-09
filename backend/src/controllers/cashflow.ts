@@ -1,5 +1,12 @@
 import { Request, Response, NextFunction } from 'express';
 import { cashflowService } from '../services/cashflow';
+import { 
+  createTransactionSchema, 
+  updateTransactionSchema, 
+  createSubscriptionSchema, 
+  updateSubscriptionSchema, 
+  updateCurrencySchema 
+} from '../validators/cashflow';
 
 // --- TRANSACTIONS ---
 export const getTransactions = async (req: Request, res: Response, next: NextFunction) => {
@@ -11,14 +18,19 @@ export const getTransactions = async (req: Request, res: Response, next: NextFun
 
 export const createTransaction = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const transaction = await cashflowService.createTransaction(req.user!.id, req.body);
+    const validatedData = createTransactionSchema.parse(req.body);
+    const transaction = await cashflowService.createTransaction(req.user!.id, {
+      ...validatedData,
+      id: validatedData.id || ""
+    });
     res.status(201).json(transaction);
   } catch (error) { next(error); }
 };
 
 export const updateTransaction = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    await cashflowService.updateTransaction(req.user!.id, req.params.id, req.body);
+    const validatedData = updateTransactionSchema.parse(req.body);
+    await cashflowService.updateTransaction(req.user!.id, req.params.id, validatedData);
     res.json({ success: true });
   } catch (error) { next(error); }
 };
@@ -40,14 +52,20 @@ export const getSubscriptions = async (req: Request, res: Response, next: NextFu
 
 export const createSubscription = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const subscription = await cashflowService.createSubscription(req.user!.id, req.body);
+    const validatedData = createSubscriptionSchema.parse(req.body);
+    const subscription = await cashflowService.createSubscription(req.user!.id, {
+      ...validatedData,
+      id: validatedData.id || "",
+      lastProcessed: validatedData.lastProcessed || ""
+    });
     res.status(201).json(subscription);
   } catch (error) { next(error); }
 };
 
 export const updateSubscription = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    await cashflowService.updateSubscription(req.user!.id, req.params.id, req.body);
+    const validatedData = updateSubscriptionSchema.parse(req.body);
+    await cashflowService.updateSubscription(req.user!.id, req.params.id, validatedData);
     res.json({ success: true });
   } catch (error) { next(error); }
 };
@@ -69,8 +87,8 @@ export const getCurrency = async (req: Request, res: Response, next: NextFunctio
 
 export const updateCurrency = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { currency } = req.body;
-    await cashflowService.updateCurrency(req.user!.id, currency);
+    const validatedData = updateCurrencySchema.parse(req.body);
+    await cashflowService.updateCurrency(req.user!.id, validatedData.currency);
     res.json({ success: true });
   } catch (error) { next(error); }
 };

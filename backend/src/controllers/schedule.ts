@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { scheduleService } from '../services/schedule';
+import { createScheduleSchema, updateScheduleSchema } from '../validators/schedule';
 
 export const getSchedules = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -10,7 +11,12 @@ export const getSchedules = async (req: Request, res: Response, next: NextFuncti
 
 export const createSchedule = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const schedule = await scheduleService.createSchedule(req.user!.id, req.body);
+    const validatedData = createScheduleSchema.parse(req.body);
+    const schedule = await scheduleService.createSchedule(req.user!.id, {
+      ...validatedData,
+      id: validatedData.id || "",
+      colorTheme: validatedData.colorTheme || "default"
+    });
     res.status(201).json(schedule);
   } catch (error: any) { 
     if (error.message === 'Schedule overlaps with existing schedule') {
@@ -23,7 +29,8 @@ export const createSchedule = async (req: Request, res: Response, next: NextFunc
 
 export const updateSchedule = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    await scheduleService.updateSchedule(req.user!.id, req.params.id, req.body);
+    const validatedData = updateScheduleSchema.parse(req.body);
+    await scheduleService.updateSchedule(req.user!.id, req.params.id, validatedData);
     res.json({ success: true });
   } catch (error: any) { 
     if (error.message === 'Schedule overlaps with existing schedule') {

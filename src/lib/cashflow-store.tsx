@@ -1,7 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, useMemo } from "react"
 import { useAuth } from "./auth-provider"
 import { supabase } from "./supabase"
-import { toast } from "sonner" // In case they use it, or fallback to console
 
 export interface Transaction {
   id: string;

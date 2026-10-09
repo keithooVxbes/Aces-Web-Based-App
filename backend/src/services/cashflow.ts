@@ -112,7 +112,7 @@ export const cashflowService = {
       id: data.id,
       type: data.type,
       amount: Number(data.amount),
-      category: data.categories?.name || tx.category,
+      category: (data.categories as any)?.name || tx.category,
       description: data.description || '',
       date: data.transaction_date
     };
@@ -206,7 +206,7 @@ export const cashflowService = {
       id: data.id,
       name: data.name,
       amount: Number(data.amount),
-      category: data.categories?.name || sub.category,
+      category: (data.categories as any)?.name || sub.category,
       startDate: data.start_date,
       lastProcessed: data.last_processed || new Date().toISOString()
     };

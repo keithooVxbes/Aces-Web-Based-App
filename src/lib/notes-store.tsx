@@ -52,7 +52,7 @@ function getStorageKey(prefix: string, userId: string | undefined) {
   return userId ? `${prefix}-${userId}` : prefix
 }
 
-function createId(prefix: string) {
+function createId() {
   // Postgres requires valid UUIDs. Ignore the prefix.
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
     return crypto.randomUUID()
@@ -172,7 +172,7 @@ export function NotesProvider({ children }: { children: ReactNode }) {
     const validFolderId = folderId && state.folders.some((f) => f.id === folderId) ? folderId : null
     
     const newNote: Note = {
-      id: createId("note"),
+      id: createId(),
       content: "",
       lastModified: Date.now(),
       pinned: false,
@@ -346,7 +346,7 @@ export function NotesProvider({ children }: { children: ReactNode }) {
     if (state.folders.some(f => f.name.toLocaleLowerCase() === normalizedName)) return null
 
     const newFolder: NoteFolder = {
-      id: createId("folder"),
+      id: createId(),
       name: normalizedName,
       createdAt: Date.now()
     }
