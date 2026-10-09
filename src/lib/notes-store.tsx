@@ -4,6 +4,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react"
@@ -95,7 +96,9 @@ export function NotesProvider({ children }: { children: ReactNode }) {
     return data.session?.access_token
   }
   
-  const API_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api"
+  const API_URL = import.meta.env.VITE_API_BASE_URL;
+
+  const optimisticCreatedIds = useRef<Set<string>>(new Set())
 
   // 1. Load Local Fallback
   useEffect(() => {
@@ -130,7 +133,15 @@ export function NotesProvider({ children }: { children: ReactNode }) {
         const fetchedNotes: Note[] = await notesRes.json()
 
         console.log("[DEBUG] API fetch success. Notes count:", fetchedNotes.length);
-        setState({ folders: fetchedFolders, notes: fetchedNotes })
+        
+        setState(prev => {
+          const fetchedIds = new Set(fetchedNotes.map(n => n.id))
+          const optimisticNotes = prev.notes.filter(n => optimisticCreatedIds.current.has(n.id) && !fetchedIds.has(n.id))
+          return { 
+            folders: fetchedFolders, 
+            notes: [...optimisticNotes, ...fetchedNotes].sort((a, b) => b.lastModified - a.lastModified)
+          }
+        })
         
         // Cache locally
         localStorage.setItem(getStorageKey(FOLDERS_STORAGE_PREFIX, user.id), JSON.stringify(fetchedFolders))
@@ -145,15 +156,13 @@ export function NotesProvider({ children }: { children: ReactNode }) {
 
   // Track active note
   useEffect(() => {
-    console.log("[DEBUG] useEffect [state.notes] triggered. Current notes length:", state.notes.length);
     setActiveNoteId((currentId) => {
-      console.log("[DEBUG] setActiveNoteId evaluator. currentId:", currentId);
       if (currentId && state.notes.some((n) => n.id === currentId)) {
-        console.log("[DEBUG] Keeping current activeNoteId:", currentId);
         return currentId
       }
       const fallbackId = state.notes.length > 0 ? state.notes[0].id : null;
-      console.log("[DEBUG] currentId not found or null, falling back to:", fallbackId);
+      console.log("STORE EFFECT CHANGING ACTIVE NOTE TO", fallbackId);
+      if (fallbackId === null) console.trace("STORE EFFECT SET ACTIVE NOTE TO NULL");
       return fallbackId
     })
   }, [state.notes])
@@ -179,11 +188,10 @@ export function NotesProvider({ children }: { children: ReactNode }) {
       folderId: validFolderId,
     }
 
-    console.log(`[DEBUG] createNote: Creating new note ${newNote.id} in folder ${validFolderId}`);
-    
+    console.log("STORE createNote called");
+    optimisticCreatedIds.current.add(newNote.id)
     setState(prev => ({ ...prev, notes: [newNote, ...prev.notes] }))
     setActiveNoteId(newNote.id)
-    console.log(`[DEBUG] createNote: Set optimistic state and activeNoteId to ${newNote.id}`);
 
     try {
       const token = await getAuthToken()

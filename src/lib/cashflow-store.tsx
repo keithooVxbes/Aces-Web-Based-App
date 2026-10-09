@@ -54,7 +54,7 @@ export function CashflowProvider({ children }: { children: React.ReactNode }) {
   const [currency, setCurrencyState] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
 
-  const API_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api"
+  const API_URL = import.meta.env.VITE_API_BASE_URL;
   
   const getAuthToken = async () => {
     const { data } = await supabase.auth.getSession()

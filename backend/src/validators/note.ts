@@ -12,14 +12,14 @@ export const updateNoteFolderSchema = z.object({
 
 export const createNoteSchema = z.object({
   id: z.string().uuid().optional(),
-  content: z.string().min(1, "Note content is required"), // title is extracted from content
+  content: z.string().max(500000, "Note content is too large"), // title is extracted from content
   pinned: z.boolean().default(false),
   folderId: z.string().uuid().nullable().optional(),
   lastModified: z.number().int().positive()
 });
 
 export const updateNoteSchema = z.object({
-  content: z.string().min(1, "Note content cannot be empty").optional(),
+  content: z.string().max(500000, "Note content is too large").optional(),
   pinned: z.boolean().optional(),
   folderId: z.string().uuid().nullable().optional(),
   lastModified: z.number().int().positive().optional()

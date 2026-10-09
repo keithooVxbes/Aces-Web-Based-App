@@ -4,7 +4,7 @@ import { ZodError } from 'zod';
 export const errorHandler = (err: any, req: Request, res: Response, next: NextFunction) => {
   // Catch Zod Validation Errors
   if (err instanceof ZodError) {
-    const formattedErrors = (err as any).errors.map((e: any) => ({
+    const formattedErrors = (err.issues || []).map((e: any) => ({
       path: e.path.join('.'),
       message: e.message
     }));

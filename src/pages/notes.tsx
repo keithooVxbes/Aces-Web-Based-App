@@ -176,7 +176,18 @@ export default function NotesPage() {
   const [folderError, setFolderError] = useState("")
   const [folderToDelete, setFolderToDelete] = useState<NoteFolder | null>(null)
   const [editorView, setEditorView] = useState<"edit" | "preview">("edit")
-  const [isEditorOpen, setIsEditorOpen] = useState(false)
+  const [_isEditorOpen, _setIsEditorOpen] = useState(false)
+  const isEditorOpen = _isEditorOpen
+
+  const setIsEditorOpen = useCallback((value: boolean) => {
+    console.log("EDITOR STATE CHANGE", value)
+    if (!value) console.trace("EDITOR CLOSED")
+    _setIsEditorOpen(value)
+  }, [])
+
+  useEffect(() => {
+    console.log("ACTIVE NOTE CHANGED", activeNoteId)
+  }, [activeNoteId])
 
   const selectedNoteIdSet = useMemo(() => new Set(selectedNoteIds), [selectedNoteIds])
   const folderNames = useMemo(
@@ -259,9 +270,10 @@ export default function NotesPage() {
   }, [activeView, folders])
 
   useEffect(() => {
+    if (isEditorOpen) return
     if (activeNoteId && filteredNotes.some((note) => note.id === activeNoteId)) return
     setActiveNoteId(filteredNotes[0]?.id ?? null)
-  }, [activeNoteId, activeView, filteredNotes, setActiveNoteId])
+  }, [activeNoteId, activeView, filteredNotes, setActiveNoteId, isEditorOpen])
 
   useEffect(() => {
     if (isEditorOpen && !activeNote) setIsEditorOpen(false)
@@ -283,11 +295,12 @@ export default function NotesPage() {
   }, [setActiveNoteId])
 
   const handleCreateNote = useCallback(() => {
+    console.log("OPEN EDITOR", { activeNoteId, isEditorOpen })
     if (activeView === "pinned") setActiveView("inbox")
     createNote(getCreationFolderId())
     setEditorView("edit")
     setIsEditorOpen(true)
-  }, [activeView, createNote, getCreationFolderId])
+  }, [activeView, createNote, getCreationFolderId, activeNoteId, isEditorOpen])
 
   const topView = isFolderView(activeView) ? "all" : activeView
   const handleTopViewChange = useCallback((value: string) => {
