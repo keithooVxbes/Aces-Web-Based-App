@@ -55,10 +55,33 @@ export async function exportToFile(): Promise<{
 
     const jsonString = JSON.stringify(exportPayload, null, 2)
 
-    // Send to Electron for saving
-    const result = await window.ipcRenderer.dataSync.exportData(jsonString)
+    let success = false;
+    let result: { success: boolean; canceled?: boolean; filePath?: string; error?: string } = { 
+      success: false, 
+      error: "Failed to export data" 
+    };
 
-    if (result.success) {
+    if (window.ipcRenderer?.dataSync) {
+      // Send to Electron for saving
+      result = await window.ipcRenderer.dataSync.exportData(jsonString)
+      success = result.success;
+    } else {
+      // Browser fallback
+      const blob = new Blob([jsonString], { type: "application/json" })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = `aces-export-${new Date().toISOString().split("T")[0]}.json`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+      
+      success = true
+      result = { success: true }
+    }
+
+    if (success) {
       localStorage.setItem(
         SYNC_META_KEY,
         JSON.stringify({ type: "export", at: new Date().toISOString() })
