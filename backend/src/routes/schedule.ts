@@ -4,8 +4,8 @@ import {
   createSchedule,
   updateSchedule,
   deleteSchedule
-} from '../controllers/schedule';
-import { requireAuth } from '../middlewares/auth';
+} from '../controllers/schedule.js';
+import { requireAuth } from '../middlewares/auth.js';
 
 const router = Router();
 

@@ -1,4 +1,4 @@
-import { supabase } from '../config/supabase';
+import { supabase } from '../config/supabase.js';
 
 // Frontend Interfaces
 export interface NoteFrontend {

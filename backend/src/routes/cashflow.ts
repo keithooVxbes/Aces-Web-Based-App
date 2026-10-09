@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { requireAuth } from '../middlewares/auth';
+import { requireAuth } from '../middlewares/auth.js';
 import {
   getTransactions,
   createTransaction,
@@ -11,7 +11,7 @@ import {
   deleteSubscription,
   getCurrency,
   updateCurrency
-} from '../controllers/cashflow';
+} from '../controllers/cashflow.js';
 
 const router = Router();
 

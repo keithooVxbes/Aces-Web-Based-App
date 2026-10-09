@@ -1,4 +1,4 @@
-import { supabase } from '../config/supabase';
+import { supabase } from '../config/supabase.js';
 
 // Interfaces for API input/output matching frontend
 export interface TransactionFrontend {

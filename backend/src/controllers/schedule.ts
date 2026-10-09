@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
-import { scheduleService } from '../services/schedule';
-import { createScheduleSchema, updateScheduleSchema } from '../validators/schedule';
+import { scheduleService } from '../services/schedule.js';
+import { createScheduleSchema, updateScheduleSchema } from '../validators/schedule.js';
 
 export const getSchedules = async (req: Request, res: Response, next: NextFunction) => {
   try {

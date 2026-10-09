@@ -1,4 +1,4 @@
-import { supabase } from '../config/supabase';
+import { supabase } from '../config/supabase.js';
 
 // TypeScript interface defining exactly what the frontend expects
 export interface AssignmentFrontend {

@@ -1,11 +1,11 @@
 import { Router } from 'express';
-import { requireAuth } from '../middlewares/auth';
+import { requireAuth } from '../middlewares/auth.js';
 import {
   getAssignments,
   createAssignment,
   updateAssignment,
   deleteAssignment
-} from '../controllers/assignment';
+} from '../controllers/assignment.js';
 
 const router = Router();
 

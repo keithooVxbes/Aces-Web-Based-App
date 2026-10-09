@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { noteService } from '../services/note';
+import { noteService } from '../services/note.js';
 import { 
   createNoteFolderSchema, 
   updateNoteFolderSchema, 
@@ -7,7 +7,7 @@ import {
   updateNoteSchema,
   deleteNotesSchema,
   reorderNotesSchema 
-} from '../validators/note';
+} from '../validators/note.js';
 
 // FOLDERS
 export const getFolders = async (req: Request, res: Response, next: NextFunction) => {

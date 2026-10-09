@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { supabase } from '../config/supabase';
+import { supabase } from '../config/supabase.js';
 
 export const getMe = async (req: Request, res: Response, next: NextFunction) => {
   try {

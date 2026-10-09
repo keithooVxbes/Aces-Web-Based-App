@@ -11,8 +11,8 @@ import {
   deleteNote,
   deleteNotes,
   reorderNotes
-} from '../controllers/note';
-import { requireAuth } from '../middlewares/auth';
+} from '../controllers/note.js';
+import { requireAuth } from '../middlewares/auth.js';
 
 const router = Router();
 

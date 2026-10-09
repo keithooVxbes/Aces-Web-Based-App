@@ -1,6 +1,6 @@
 import { Router } from 'express';
-import { getProfile, updateProfile } from '../controllers/profile';
-import { requireAuth } from '../middlewares/auth';
+import { getProfile, updateProfile } from '../controllers/profile.js';
+import { requireAuth } from '../middlewares/auth.js';
 
 const router = Router();
 

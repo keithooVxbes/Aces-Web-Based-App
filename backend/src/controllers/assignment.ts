@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
-import { assignmentService } from '../services/assignment';
-import { createAssignmentSchema, updateAssignmentSchema } from '../validators/assignment';
+import { assignmentService } from '../services/assignment.js';
+import { createAssignmentSchema, updateAssignmentSchema } from '../validators/assignment.js';
 
 export const getAssignments = async (req: Request, res: Response, next: NextFunction) => {
   try {

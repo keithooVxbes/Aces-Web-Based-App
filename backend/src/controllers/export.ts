@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { exportService } from '../services/export';
+import { exportService } from '../services/export.js';
 
 export const getExportData = async (req: Request, res: Response, next: NextFunction) => {
   try {

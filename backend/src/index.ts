@@ -6,16 +6,16 @@ import path from 'path';
 // Load env from backend/.env
 dotenv.config();
 
-import authRoutes from './routes/auth';
-import assignmentRoutes from './routes/assignment';
-import profileRoutes from './routes/profile';
-import noteRoutes from './routes/note';
-import scheduleRoutes from './routes/schedule';
-import cashflowRoutes from './routes/cashflow';
-import exportRoutes from './routes/export';
-import { errorHandler } from './middlewares/errorHandler';
-import { requestLogger } from './middlewares/requestLogger';
-import { globalLimiter, authLimiter, exportLimiter } from './middlewares/rateLimiter';
+import authRoutes from './routes/auth.js';
+import assignmentRoutes from './routes/assignment.js';
+import profileRoutes from './routes/profile.js';
+import noteRoutes from './routes/note.js';
+import scheduleRoutes from './routes/schedule.js';
+import cashflowRoutes from './routes/cashflow.js';
+import exportRoutes from './routes/export.js';
+import { errorHandler } from './middlewares/errorHandler.js';
+import { requestLogger } from './middlewares/requestLogger.js';
+import { globalLimiter, authLimiter, exportLimiter } from './middlewares/rateLimiter.js';
 
 const app = express();
 const port = process.env.PORT || 5000;

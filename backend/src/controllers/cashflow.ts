@@ -1,12 +1,12 @@
 import { Request, Response, NextFunction } from 'express';
-import { cashflowService } from '../services/cashflow';
+import { cashflowService } from '../services/cashflow.js';
 import { 
   createTransactionSchema, 
   updateTransactionSchema, 
   createSubscriptionSchema, 
   updateSubscriptionSchema, 
   updateCurrencySchema 
-} from '../validators/cashflow';
+} from '../validators/cashflow.js';
 
 // --- TRANSACTIONS ---
 export const getTransactions = async (req: Request, res: Response, next: NextFunction) => {
