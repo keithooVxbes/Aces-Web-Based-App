@@ -62,11 +62,11 @@ app.use('/api/export', exportLimiter, exportRoutes);
 // Error handling middleware (must be after routes)
 app.use(errorHandler);
 
-if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
+if (!process.env.VERCEL) {
   app.listen(port, () => {
     console.log(`Backend server is running on port ${port}`);
   });
 }
 
 // Export for Vercel Serverless
-module.exports = app;
+export default app;
